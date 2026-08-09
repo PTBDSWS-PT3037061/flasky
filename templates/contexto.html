@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Olá, {{ nome }}!</h1>
+    </div>
+    <h3>Seu navegador é: {{ navegador }}</h3>
+    <h3>O IP do computador remoto é: {{ ip }}</h3>
+    <h3>O host da aplicação é: {{ host }}</h3>
+</div>
+{% endblock %}

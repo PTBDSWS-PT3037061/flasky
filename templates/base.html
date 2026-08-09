@@ -1,0 +1,25 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}Avaliação Contínua{% endblock %}
+
+{% block navbar %}
+<div class="navbar navbar-inverse" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="/">Avaliação contínua: <b>Aula 040</b></a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="/">Home</a></li>
+                <li><a href="/user/Renan%20Gomes%20Mota/PT3037061/IFSP">Identificação</a></li>
+                <li><a href="/contextorequisicao">Contexto da requisição</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{{ moment.include_moment() }}
+{% endblock %}
