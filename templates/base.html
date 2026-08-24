@@ -1,6 +1,6 @@
 {% extends "bootstrap/base.html" %}
 
-{% block title %}Flasky{% endblock %}
+{% block title %}Avaliação Contínua{% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -12,26 +12,19 @@
 <div class="navbar navbar-inverse" role="navigation">
     <div class="container">
         <div class="navbar-header">
-            <a class="navbar-brand" href="/">Flasky</a>
+            <a class="navbar-brand" href="/">Avaliação contínua: <b>Aula 050.B</b></a>
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
                 <li><a href="/">Home</a></li>
+                <li><a href="/login">Login</a></li>
             </ul>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block content %}
-<div class="container">
-    {% for message in get_flashed_messages() %}
-    <div class="alert alert-warning">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ message }}
-    </div>
-    {% endfor %}
-
-    {% block page_content %}{% endblock %}
-</div>
+{% block scripts %}
+{{ super() }}
+{{ moment.include_moment() }}
 {% endblock %}
