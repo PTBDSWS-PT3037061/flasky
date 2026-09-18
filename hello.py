@@ -1,32 +1,34 @@
 import os
+import requests
 
-from flask import Flask, render_template, session, redirect, url_for
+from dotenv import load_dotenv
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
-
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField
 from wtforms.validators import DataRequired
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
 
-# ============================================================
-# CONFIGURAÇÃO
-# ============================================================
-
 basedir = os.path.abspath(os.path.dirname(__file__))
+
+load_dotenv(
+    os.path.join(basedir, '.env')
+)
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = 'hard to guess string'
+app.config['SECRET_KEY'] = os.getenv(
+    'SECRET_KEY',
+    'hard to guess string'
+)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = \
     'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 
 bootstrap = Bootstrap(app)
 moment = Moment(app)
@@ -34,10 +36,13 @@ moment = Moment(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+FLASKY_ADMIN = os.getenv('FLASKY_ADMIN')
+API_URL = os.getenv('API_URL')
+API_KEY = os.getenv('API_KEY')
+API_FROM = os.getenv('API_FROM')
+FLASKY_NAME = os.getenv('FLASKY_NAME')
+FLASKY_PRONTUARIO = os.getenv('FLASKY_PRONTUARIO')
 
-# ============================================================
-# MODELOS
-# ============================================================
 
 class Role(db.Model):
 
@@ -89,10 +94,6 @@ class User(db.Model):
         return '<User %r>' % self.username
 
 
-# ============================================================
-# FORMULÁRIO
-# ============================================================
-
 class NameForm(FlaskForm):
 
     name = StringField(
@@ -113,10 +114,6 @@ class NameForm(FlaskForm):
     submit = SubmitField('Submit')
 
 
-# ============================================================
-# GARANTIR QUE AS 3 FUNÇÕES EXISTAM
-# ============================================================
-
 def create_default_roles():
 
     role_names = [
@@ -133,7 +130,6 @@ def create_default_roles():
             name=role_name
         ).first()
 
-        # só cria caso ainda não exista
         if role is None:
 
             role = Role(
@@ -149,9 +145,61 @@ def create_default_roles():
     return roles
 
 
-# ============================================================
-# SHELL
-# ============================================================
+def send_registration_email(user):
+
+    if not API_URL:
+        raise RuntimeError(
+            'API_URL não configurada.'
+        )
+
+    if not API_KEY:
+        raise RuntimeError(
+            'API_KEY não configurada.'
+        )
+
+    if not API_FROM:
+        raise RuntimeError(
+            'API_FROM não configurado.'
+        )
+
+    if not FLASKY_ADMIN:
+        raise RuntimeError(
+            'FLASKY_ADMIN não configurado.'
+        )
+
+    recipients = [
+        'flaskaulasweb@zohomail.com',
+        FLASKY_ADMIN
+    ]
+
+    body = f"""
+Novo usuário cadastrado.
+
+Prontuário: {FLASKY_PRONTUARIO}
+Nome do aluno: {FLASKY_NAME}
+Usuário cadastrado: {user.username}
+Função: {user.role.name}
+"""
+
+    response = requests.post(
+        API_URL,
+        auth=(
+            'api',
+            API_KEY
+        ),
+        data={
+            'from': API_FROM,
+            'to': recipients,
+            'subject': 'Novo usuário cadastrado',
+            'text': body
+        },
+        timeout=15
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
 
 @app.shell_context_processor
 def make_shell_context():
@@ -162,10 +210,6 @@ def make_shell_context():
         Role=Role
     )
 
-
-# ============================================================
-# ERROS
-# ============================================================
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -183,46 +227,56 @@ def internal_server_error(e):
     ), 500
 
 
-# ============================================================
-# PÁGINA PRINCIPAL
-# ============================================================
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
 
     form = NameForm()
 
-    # garante que Administrator, Moderator e User existam
     roles_dictionary = create_default_roles()
 
     if form.validate_on_submit():
 
         username = form.name.data.strip()
 
-        # procura usuário existente
         user = User.query.filter_by(
             username=username
         ).first()
 
         if user is None:
 
-            # pega a função escolhida no select
             selected_role = roles_dictionary[
                 form.role.data
             ]
 
-            # cria o usuário com a função selecionada
             user = User(
                 username=username,
                 role=selected_role
             )
 
             db.session.add(user)
-
-            # persistência no banco
             db.session.commit()
 
             session['known'] = False
+
+            try:
+
+                send_registration_email(user)
+
+                flash(
+                    'Usuário cadastrado e e-mail enviado.'
+                )
+
+            except Exception as error:
+
+                print(
+                    'Erro ao enviar e-mail:',
+                    error
+                )
+
+                flash(
+                    'Usuário cadastrado, mas ocorreu '
+                    'um erro no envio do e-mail.'
+                )
 
         else:
 
@@ -234,33 +288,17 @@ def index():
             url_for('index')
         )
 
-    # ========================================================
-    # LISTAGEM DE USUÁRIOS
-    # ========================================================
-
     users = User.query.order_by(
         User.id
     ).all()
-
-    # ========================================================
-    # LISTAGEM DE FUNÇÕES
-    # ========================================================
 
     roles = Role.query.order_by(
         Role.id
     ).all()
 
-    # ========================================================
-    # CONTADORES
-    # ========================================================
-
     users_count = User.query.count()
 
     roles_count = Role.query.count()
-
-    # ========================================================
-    # USUÁRIOS AGRUPADOS POR FUNÇÃO
-    # ========================================================
 
     grouped_roles = []
 
