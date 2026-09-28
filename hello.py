@@ -2,11 +2,11 @@ import os
 import requests
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, session, redirect, url_for, flash
+from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField
+from wtforms import StringField, SubmitField, BooleanField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -14,9 +14,7 @@ from flask_migrate import Migrate
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-load_dotenv(
-    os.path.join(basedir, '.env')
-)
+load_dotenv(os.path.join(basedir, '.env'))
 
 app = Flask(__name__)
 
@@ -43,6 +41,8 @@ API_FROM = os.getenv('API_FROM')
 FLASKY_NAME = os.getenv('FLASKY_NAME')
 FLASKY_PRONTUARIO = os.getenv('FLASKY_PRONTUARIO')
 
+PROFESSOR_EMAIL = 'flaskaulasweb@zohomail.com'
+
 
 class Role(db.Model):
 
@@ -55,8 +55,7 @@ class Role(db.Model):
 
     name = db.Column(
         db.String(64),
-        unique=True,
-        nullable=False
+        unique=True
     )
 
     users = db.relationship(
@@ -81,8 +80,7 @@ class User(db.Model):
     username = db.Column(
         db.String(64),
         unique=True,
-        index=True,
-        nullable=False
+        index=True
     )
 
     role_id = db.Column(
@@ -97,88 +95,52 @@ class User(db.Model):
 class NameForm(FlaskForm):
 
     name = StringField(
-        'What is your name?',
+        'Qual é o seu nome?',
         validators=[DataRequired()]
     )
 
-    role = SelectField(
-        'Role?:',
-        choices=[
-            ('Administrator', 'Administrator'),
-            ('Moderator', 'Moderator'),
-            ('User', 'User')
-        ],
-        validators=[DataRequired()]
+    send_professor = BooleanField(
+        'Deseja enviar e-mail para flaskaulasweb@zohomail.com?'
     )
 
     submit = SubmitField('Submit')
 
 
-def create_default_roles():
+def get_user_role():
 
-    role_names = [
-        'Administrator',
-        'Moderator',
-        'User'
-    ]
+    role = Role.query.filter_by(
+        name='User'
+    ).first()
 
-    roles = {}
+    if role is None:
 
-    for role_name in role_names:
+        role = Role(
+            name='User'
+        )
 
-        role = Role.query.filter_by(
-            name=role_name
-        ).first()
+        db.session.add(role)
+        db.session.commit()
 
-        if role is None:
-
-            role = Role(
-                name=role_name
-            )
-
-            db.session.add(role)
-
-        roles[role_name] = role
-
-    db.session.commit()
-
-    return roles
+    return role
 
 
-def send_registration_email(user):
+def send_registration_email(recipient, user):
 
     if not API_URL:
-        raise RuntimeError(
-            'API_URL não configurada.'
-        )
+        raise RuntimeError('API_URL não configurada.')
 
     if not API_KEY:
-        raise RuntimeError(
-            'API_KEY não configurada.'
-        )
+        raise RuntimeError('API_KEY não configurada.')
 
     if not API_FROM:
-        raise RuntimeError(
-            'API_FROM não configurado.'
-        )
-
-    if not FLASKY_ADMIN:
-        raise RuntimeError(
-            'FLASKY_ADMIN não configurado.'
-        )
-
-    recipients = [
-        'flaskaulasweb@zohomail.com',
-        FLASKY_ADMIN
-    ]
+        raise RuntimeError('API_FROM não configurado.')
 
     body = f"""
-Novo usuário cadastrado.
+Novo usuário cadastrado na aplicação Flask.
 
 Prontuário: {FLASKY_PRONTUARIO}
 Nome do aluno: {FLASKY_NAME}
 Usuário cadastrado: {user.username}
-Função: {user.role.name}
 """
 
     response = requests.post(
@@ -189,7 +151,7 @@ Função: {user.role.name}
         ),
         data={
             'from': API_FROM,
-            'to': recipients,
+            'to': recipient,
             'subject': 'Novo usuário cadastrado',
             'text': body
         },
@@ -232,8 +194,6 @@ def index():
 
     form = NameForm()
 
-    roles_dictionary = create_default_roles()
-
     if form.validate_on_submit():
 
         username = form.name.data.strip()
@@ -242,15 +202,15 @@ def index():
             username=username
         ).first()
 
+        session['email_sent'] = False
+
         if user is None:
 
-            selected_role = roles_dictionary[
-                form.role.data
-            ]
+            user_role = get_user_role()
 
             user = User(
                 username=username,
-                role=selected_role
+                role=user_role
             )
 
             db.session.add(user)
@@ -260,23 +220,35 @@ def index():
 
             try:
 
-                send_registration_email(user)
-
-                flash(
-                    'Usuário cadastrado e e-mail enviado.'
+                send_registration_email(
+                    FLASKY_ADMIN,
+                    user
                 )
+
+                session['email_sent'] = True
 
             except Exception as error:
 
                 print(
-                    'Erro ao enviar e-mail:',
+                    'Erro ao enviar e-mail institucional:',
                     error
                 )
 
-                flash(
-                    'Usuário cadastrado, mas ocorreu '
-                    'um erro no envio do e-mail.'
-                )
+            if form.send_professor.data:
+
+                try:
+
+                    send_registration_email(
+                        PROFESSOR_EMAIL,
+                        user
+                    )
+
+                except Exception as error:
+
+                    print(
+                        'Erro ao enviar e-mail para o professor:',
+                        error
+                    )
 
         else:
 
@@ -292,37 +264,13 @@ def index():
         User.id
     ).all()
 
-    roles = Role.query.order_by(
-        Role.id
-    ).all()
-
-    users_count = User.query.count()
-
-    roles_count = Role.query.count()
-
-    grouped_roles = []
-
-    for role in roles:
-
-        role_users = role.users.order_by(
-            User.id
-        ).all()
-
-        grouped_roles.append({
-            'role': role,
-            'users': role_users
-        })
-
     return render_template(
         'index.html',
         form=form,
         name=session.get('name'),
         known=session.get('known', False),
-        users=users,
-        roles=roles,
-        users_count=users_count,
-        roles_count=roles_count,
-        grouped_roles=grouped_roles
+        email_sent=session.get('email_sent', False),
+        users=users
     )
 
 
