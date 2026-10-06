@@ -1,6 +1,8 @@
 import os
-import requests
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+import requests
 from dotenv import load_dotenv
 from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
@@ -92,6 +94,52 @@ class User(db.Model):
         return '<User %r>' % self.username
 
 
+class Email(db.Model):
+
+    __tablename__ = 'emails'
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    sender = db.Column(
+        db.String(64),
+        nullable=False
+    )
+
+    recipients = db.Column(
+        db.Text,
+        nullable=False
+    )
+
+    subject = db.Column(
+        db.String(255),
+        nullable=False
+    )
+
+    text = db.Column(
+        db.Text,
+        nullable=False
+    )
+
+    body = db.Column(
+        db.Text,
+        nullable=False
+    )
+
+    timestamp = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(
+            ZoneInfo('America/Sao_Paulo')
+        ),
+        nullable=False
+    )
+
+    def __repr__(self):
+        return '<Email %r>' % self.id
+
+
 class NameForm(FlaskForm):
 
     name = StringField(
@@ -124,22 +172,39 @@ def get_user_role():
     return role
 
 
-def send_registration_email(recipient, user):
+def send_registration_email(user, recipients):
 
     if not API_URL:
-        raise RuntimeError('API_URL não configurada.')
+        raise RuntimeError(
+            'API_URL não configurada.'
+        )
 
     if not API_KEY:
-        raise RuntimeError('API_KEY não configurada.')
+        raise RuntimeError(
+            'API_KEY não configurada.'
+        )
 
     if not API_FROM:
-        raise RuntimeError('API_FROM não configurado.')
+        raise RuntimeError(
+            'API_FROM não configurado.'
+        )
+
+    if not FLASKY_ADMIN:
+        raise RuntimeError(
+            'FLASKY_ADMIN não configurado.'
+        )
+
+    subject = '[Flasky] Novo usuário'
+
+    text = f'Novo usuário cadastrado: {user.username}'
 
     body = f"""
-Novo usuário cadastrado na aplicação Flask.
+Novo usuário cadastrado.
 
 Prontuário: {FLASKY_PRONTUARIO}
+
 Nome do aluno: {FLASKY_NAME}
+
 Usuário cadastrado: {user.username}
 """
 
@@ -151,14 +216,30 @@ Usuário cadastrado: {user.username}
         ),
         data={
             'from': API_FROM,
-            'to': recipient,
-            'subject': 'Novo usuário cadastrado',
+            'to': recipients,
+            'subject': subject,
             'text': body
         },
         timeout=15
     )
 
     response.raise_for_status()
+
+    recipients_text = ', '.join(
+        f"'{recipient}'"
+        for recipient in recipients
+    )
+
+    email = Email(
+        sender=user.username,
+        recipients=recipients_text,
+        subject=subject,
+        text=text,
+        body=body
+    )
+
+    db.session.add(email)
+    db.session.commit()
 
     return response.json()
 
@@ -169,7 +250,8 @@ def make_shell_context():
     return dict(
         db=db,
         User=User,
-        Role=Role
+        Role=Role,
+        Email=Email
     )
 
 
@@ -218,11 +300,21 @@ def index():
 
             session['known'] = False
 
+            recipients = [
+                FLASKY_ADMIN
+            ]
+
+            if form.send_professor.data:
+
+                recipients.append(
+                    PROFESSOR_EMAIL
+                )
+
             try:
 
                 send_registration_email(
-                    FLASKY_ADMIN,
-                    user
+                    user,
+                    recipients
                 )
 
                 session['email_sent'] = True
@@ -230,25 +322,9 @@ def index():
             except Exception as error:
 
                 print(
-                    'Erro ao enviar e-mail institucional:',
+                    'Erro ao enviar e-mail:',
                     error
                 )
-
-            if form.send_professor.data:
-
-                try:
-
-                    send_registration_email(
-                        PROFESSOR_EMAIL,
-                        user
-                    )
-
-                except Exception as error:
-
-                    print(
-                        'Erro ao enviar e-mail para o professor:',
-                        error
-                    )
 
         else:
 
@@ -264,13 +340,51 @@ def index():
         User.id
     ).all()
 
+    roles = Role.query.order_by(
+        Role.id
+    ).all()
+
+    users_count = User.query.count()
+
+    roles_count = Role.query.count()
+
+    grouped_roles = []
+
+    for role in roles:
+
+        role_users = role.users.order_by(
+            User.id
+        ).all()
+
+        grouped_roles.append({
+            'role': role,
+            'users': role_users
+        })
+
     return render_template(
         'index.html',
         form=form,
         name=session.get('name'),
         known=session.get('known', False),
         email_sent=session.get('email_sent', False),
-        users=users
+        users=users,
+        roles=roles,
+        users_count=users_count,
+        roles_count=roles_count,
+        grouped_roles=grouped_roles
+    )
+
+
+@app.route('/emailsEnviados')
+def emails_enviados():
+
+    emails = Email.query.order_by(
+        Email.timestamp.desc()
+    ).all()
+
+    return render_template(
+        'emailsEnviados.html',
+        emails=emails
     )
 
 
