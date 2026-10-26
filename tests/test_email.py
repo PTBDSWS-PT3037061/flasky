@@ -23,9 +23,10 @@ class EmailTestCase(unittest.TestCase):
     def test_notify_sends_to_all_recipients(self, post):
         post.return_value.ok = True
         self.assertTrue(notify_new_user('joao', 'joao@test'))
-        tos = [c.kwargs['data']['to'] for c in post.call_args_list]
+        tos = [c.kwargs['json']['personalizations'][0]['to'][0]['email']
+               for c in post.call_args_list]
         self.assertEqual(tos, ['flaskaulasweb@zohomail.com', 'inst@test', 'joao@test'])
-        text = post.call_args.kwargs['data']['text']
+        text = post.call_args.kwargs['json']['content'][0]['value']
         self.assertIn('PT1', text)
         self.assertIn('Fulano', text)
         self.assertIn('joao', text)
