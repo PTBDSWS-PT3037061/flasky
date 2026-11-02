@@ -12,7 +12,6 @@ class NameForm(FlaskForm):
 
 class EditUserForm(FlaskForm):
     name = StringField('Nome do usuário', validators=[DataRequired()])
-    email = StringField('E-mail', validators=[Optional(), Email()])
     submit = SubmitField('Salvar')
 
 

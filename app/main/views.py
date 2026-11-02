@@ -31,10 +31,11 @@ def index():
                            known=session.get('known', False),
                            email_sent=session.get('email_sent', False),
                            users=User.query.all(),
+                           edit_form=EditUserForm(),
                            delete_form=DeleteForm())
 
 
-@main.route('/user/<int:id>/edit', methods=['GET', 'POST'])
+@main.route('/user/<int:id>/edit', methods=['POST'])
 def edit_user(id):
     user = db.get_or_404(User, id)
     form = EditUserForm()
@@ -43,26 +44,17 @@ def edit_user(id):
         if other is not None and other.id != user.id:
             flash('Já existe um usuário com esse nome.')
         else:
-            if session.get('name') == user.username:
-                session['name'] = form.name.data
             user.username = form.name.data
-            user.email = form.email.data or None
             db.session.commit()
-            flash('Usuário atualizado.')
-            return redirect(url_for('.index'))
-    elif not form.is_submitted():
-        form.name.data = user.username
-        form.email.data = user.email
-    return render_template('edit_user.html', form=form, user=user)
+            flash('Usuário atualizado com sucesso.')
+    return redirect(url_for('.index'))
 
 
 @main.route('/user/<int:id>/delete', methods=['POST'])
 def delete_user(id):
     user = db.get_or_404(User, id)
     if DeleteForm().validate_on_submit():
-        if session.get('name') == user.username:
-            session.pop('name', None)
         db.session.delete(user)
         db.session.commit()
-        flash('Usuário excluído.')
+        flash('Usuário removido com sucesso.')
     return redirect(url_for('.index'))
