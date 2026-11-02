@@ -8,3 +8,13 @@ class NameForm(FlaskForm):
     email = StringField('Qual é o seu email (Envio de notificação do novo usuário)?',
                         validators=[Optional(), Email()])
     submit = SubmitField('Submit')
+
+
+class EditUserForm(FlaskForm):
+    name = StringField('Nome do usuário', validators=[DataRequired()])
+    email = StringField('E-mail', validators=[Optional(), Email()])
+    submit = SubmitField('Salvar')
+
+
+class DeleteForm(FlaskForm):
+    submit = SubmitField('Excluir')
