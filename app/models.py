@@ -87,6 +87,14 @@ class User(UserMixin, db.Model):
         return _make_token(
             {'change_email': self.id, 'new_email': new_email}, expiration)
 
+    @staticmethod
+    def from_email_change_token(token):
+        """Devolve o usuário dono de um token de troca de e-mail válido."""
+        data = _load_token(token)
+        if data is None or data.get('change_email') is None:
+            return None
+        return db.session.get(User, data.get('change_email'))
+
     def change_email(self, token):
         data = _load_token(token)
         if data is None or data.get('change_email') != self.id:

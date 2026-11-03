@@ -162,11 +162,14 @@ def change_email_request():
 
 
 @auth.route('/change_email/<token>')
-@login_required
 def change_email(token):
-    if current_user.change_email(token):
+    # o token assinado já identifica o usuário, então o link funciona
+    # mesmo se ele não estiver logado (ex.: abriu o e-mail no celular)
+    user = User.from_email_change_token(token)
+    if user is not None and user.change_email(token):
         db.session.commit()
-        flash('Your email address has been updated.')
+        flash('Your email address has been updated. '
+              'Use the new address to log in.')
     else:
         flash('Invalid request.')
     return redirect(url_for('main.index'))
