@@ -4,3 +4,7 @@ Aplicação Flask com a rota principal (`/`) e a rota de cadastro de alunos (`/a
 Os demais módulos (Professores, Disciplinas, Cursos e Ocorrências) exibem a página "Não disponível".
 
 Variáveis lidas do `.env`: `FLASKY_NAME`, `FLASKY_PRONTUARIO` e `SECRET_KEY`.
+
+## Tela inicial
+
+![Tela inicial da aplicação](print_tela_inicial.png)
