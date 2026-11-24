@@ -37,6 +37,7 @@ class AppTestCase(unittest.TestCase):
         html = r.get_data(as_text=True)
         self.assertIn('Fulano', html)
         self.assertIn('TCOA5', html)
+        self.assertIn('Estudante cadastrado com sucesso!', html)
 
     def test_cadastro_sem_nome(self):
         r = self.client.post('/alunos', data={'nome': '', 'disciplina': 1})

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from flask import render_template, redirect, url_for, current_app
+from flask import render_template, redirect, url_for, current_app, flash
 from . import main
 from .forms import AlunoForm
 from .. import db
@@ -22,6 +22,7 @@ def alunos():
         db.session.add(Aluno(nome=form.nome.data.strip(),
                              disciplina_id=form.disciplina.data))
         db.session.commit()
+        flash('Estudante cadastrado com sucesso!')
         return redirect(url_for('.alunos'))
     lista = Aluno.query.order_by(Aluno.id).all()
     return render_template('alunos.html', form=form, alunos=lista)
