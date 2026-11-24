@@ -1,8 +1,10 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms import StringField, SelectField, SubmitField
+from wtforms.validators import DataRequired, Length
 
 
-class NameForm(FlaskForm):
-    name = StringField('What is your name?', validators=[DataRequired()])
-    submit = SubmitField('Submit')
+class AlunoForm(FlaskForm):
+    nome = StringField('Cadastre o novo Aluno:',
+                       validators=[DataRequired(), Length(1, 64)])
+    disciplina = SelectField('Disciplina associada:', coerce=int)
+    submit = SubmitField('Cadastrar')
