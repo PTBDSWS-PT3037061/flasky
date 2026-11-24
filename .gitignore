@@ -6,3 +6,7 @@ __pycache__/
 
 # Ignore virtual environment directories
 venv/
+
+# Ignore local environment file and databases
+.env
+*.sqlite
