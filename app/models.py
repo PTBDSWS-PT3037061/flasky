@@ -7,7 +7,14 @@ class Disciplina(db.Model):
     nome = db.Column(db.String(64), unique=True, nullable=False)
     alunos = db.relationship('Aluno', backref='disciplina', lazy='dynamic')
 
-    NOMES_INICIAIS = ['DSWA5', 'GPSA5', 'TCOA5']
+    NOMES_INICIAIS = ['DSWA5', 'GPSA5', 'IHCA5', 'SODA5', 'PJIA5', 'TCOA5']
+
+    @staticmethod
+    def ordenadas():
+        """Disciplinas na ordem de NOMES_INICIAIS (as demais vão no final)."""
+        ordem = {nome: i for i, nome in enumerate(Disciplina.NOMES_INICIAIS)}
+        return sorted(Disciplina.query.all(),
+                      key=lambda d: (ordem.get(d.nome, len(ordem)), d.id))
 
     @staticmethod
     def insert_disciplinas():

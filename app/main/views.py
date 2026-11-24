@@ -17,8 +17,7 @@ def index():
 @main.route('/alunos', methods=['GET', 'POST'])
 def alunos():
     form = AlunoForm()
-    form.disciplina.choices = [
-        (d.id, d.nome) for d in Disciplina.query.order_by(Disciplina.id).all()]
+    form.disciplina.choices = [(d.id, d.nome) for d in Disciplina.ordenadas()]
     if form.validate_on_submit():
         db.session.add(Aluno(nome=form.nome.data.strip(),
                              disciplina_id=form.disciplina.data))

@@ -23,8 +23,9 @@ class AppTestCase(unittest.TestCase):
         self.assertIn('A data e hora local', html)
 
     def test_disciplinas_iniciais(self):
-        nomes = [d.nome for d in Disciplina.query.order_by(Disciplina.id)]
-        self.assertEqual(nomes, ['DSWA5', 'GPSA5', 'TCOA5'])
+        nomes = [d.nome for d in Disciplina.ordenadas()]
+        self.assertEqual(nomes, ['DSWA5', 'GPSA5', 'IHCA5',
+                                 'SODA5', 'PJIA5', 'TCOA5'])
 
     def test_cadastro_aluno(self):
         tcoa5 = Disciplina.query.filter_by(nome='TCOA5').first()
